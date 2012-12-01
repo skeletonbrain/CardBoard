@@ -5,10 +5,58 @@
   <title>CardBoard</title>  
   <meta name="description" content="CardBoard game framework.">  
   <meta name="author" content="skeletonbrain">  
+  <link rel="stylesheet" href="/static/css/base.css">
   <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
   <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
   <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+  <script src="/static/js/base.js"></script>
+  <script>
+    $(function() {
+      $("#sessionTabs").tabs({active:0});
+    });
+  </script>
 </head>  
 <body>  
+  <div id="sessionTabs">
+    <ul>
+      <li><a href="#sessionJoin">Join</a></li>
+      <li><a href="#sessionCreate">Create</a></li>
+    </ul>
+    <div id="sessionJoin">
+      <form action="/session" id="sessionJoin">
+        <input type="text" name="code" placeholder="Invite Code" />
+        <input type="submit" value="Join" />
+      </form>
+    </div>
+    <div id="sessionCreate">
+      <form action="/session" id="sessionCreate">
+        <input type="text" name="url" placeholder="Deck URL" />
+        <input type="submit" value="Create" />
+      </form>
+    </div>
+  </div>
+
+<script>
+  /* attach a submit handler to the form */
+  $("#sessionCreate").submit(function(event) {
+
+    /* stop form from submitting normally */
+    event.preventDefault(); 
+        
+    /* get some values from elements on the page: */
+    var $form = $( this ),
+        term = $form.find( 'input[name="s"]' ).val(),
+        url = $form.attr( 'action' );
+
+    /* Send the data using post and put the results in a div */
+    $.post( url, { s: term },
+      function( data ) {
+          var content = $( data ).find( '#content' );
+          $( "#result" ).empty().append( content );
+      }
+    );
+  });
+</script>
+
 </body>  
 </html>  
