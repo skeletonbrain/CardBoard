@@ -1,4 +1,21 @@
 body {
   font-family: sans-serif;
+  background: rgb(1, 73, 34);
+  /* rgb(1, 73, 34),
+    rgb(0,155,107) */
+}
+
+#messages {
+  background-color: white;
+  max-height: 10em;
+  overflow-y: scroll;
+}
+
+#messages div {
+}
+
+#messages .error {
+  background-color: red;
+  color: white;
 }
 

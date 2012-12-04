@@ -17,59 +17,87 @@
   </script>
 </head>
 <body>
-  <div id="sessionTabs">
-    <ul>
-      <li><a href="#sessionJoin">Join</a></li>
-      <li><a href="#sessionCreate">Create</a></li>
-    </ul>
-    <div id="sessionJoin">
-      <form>
-        <input type="text" name="code" placeholder="Invite Code" />
-        <input type="submit" value="Join" />
-        {{ xsrf_form_html() }}
-      </form>
+  <div id="wrapper">
+    <div id="sessionTabs">
+      <ul>
+        <li><a href="#sessionJoin">Join</a></li>
+        <li><a href="#sessionCreate">Create</a></li>
+      </ul>
+      <div id="sessionJoin">
+        <form>
+          <input type="text" name="code" placeholder="Invite Code" />
+          <input type="submit" value="Join" />
+          {{ xsrf_form_html() }}
+        </form>
+      </div>
+      <div id="sessionCreate">
+        <form>
+          <input type="text" name="url" placeholder="Deck URL" />
+          <input type="submit" value="Create" />
+          {{ xsrf_form_html() }}
+        </form>
+      </div>
     </div>
-    <div id="sessionCreate">
-      <form>
-        <input type="text" name="url" placeholder="Deck URL" />
-        <input type="submit" value="Create" />
-        {{ xsrf_form_html() }}
-      </form>
-    </div>
-  </div>
 
-  <div id="messages">
+    <div id="messages">
+    </div>
+
   </div>
 
   <script>
-  function processMessage(data) {
-    console.log('socket read', data);
-    if ('message' in data) {
-      displayMessage(data.message);
+
+  var game = {
+
+    ws: null,
+    code: null,
+    status: null,
+
+    processMessage: function(event) {
+      var data = $.parseJSON(event.data);
+
+      if ('message' in data) {
+        displayMessage(data.message);
+      }
+      if ('error' in data) {
+        displayError(data.error);
+      }
+      if ('status' in data) {
+        this.status = data['status'];
+      }
+    },
+
+    opened: function() {
+      displayMessage('Connected');
+      this.send({join: this.code});
+    },
+
+    closed: function() {
+      displayMessage('Disconnected');
+      $('#sessionTabs').show();
+      this.ws = null;
+    },
+
+    send: function(data) {
+      this.ws.send(JSON.stringify(data));
     }
-    if ('error' in data) {
-      displayError(data.error);
-    }
-  }
+  };
 
   function joinLobby(code) {
     var content = $('#messages');
 
     if ("WebSocket" in window) {
-        var ws = new WebSocket('ws://' + location.host + '/ws');
+        game.ws = new WebSocket('ws://' + location.host + '/ws');
+        console.log('setting code', code);
+        game.code = code;
+        console.log('game code', game.code);
+        console.log('game', game);
+        game.status = 'lobby';
 
-        ws.onopen = function() {
-          displayMessage('Connected');
-          ws.send(JSON.stringify({join: code}));
-        }
-        ws.onmessage = function(event) {
-            console.log('data is', event.data);
-          processMessage($.parseJSON(event.data));
-        }
-        ws.onclose = function() {
-          displayMessage('Disconnected');
-          $('#sessionTabs').show();
-        }
+        game.ws.onopen = function() { game.opened(); };
+
+        game.ws.onmessage = function(event) { game.processMessage(event); };
+
+        game.ws.onclose = function() { game.closed(); };
     }
     else {
       alert("This website requires WebSockets.");
@@ -77,11 +105,20 @@
   }
 
   function displayMessage(message) {
-    $("<div>" + message + "</div>").appendTo($('#messages'));
+    addMessage("", message);
   }
 
   function displayError(error) {
-    $("<div class='error'>" + error + "</div>").appendTo($('#messages'));
+    addMessage("error", error);
+  }
+
+  function addMessage(type, text) {
+    var messages = $('#messages');
+    var div = $("<div class='" + type + "'>" + text + "</div>");
+    div.hide();
+    div.appendTo(messages);
+    div.show('highlight');
+    messages.scrollTop(messages[0].scrollHeight);
   }
 
   $("#sessionCreate form").submit(function(event) {

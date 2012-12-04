@@ -48,6 +48,8 @@ class Session(object):
 
         if len(self.clients) < MAX_PLAYERS:
             self.broadcast({'message': 'invite another player with this code: {}'.format(self.code)})
+        else:
+            self.broadcast({'status': 'start', 'message': 'game full, starting'})
 
     def broadcast(self, message):
         for client in self.clients:
@@ -70,6 +72,7 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         CardSocketHandler.connections.add(self)
+        print 'opened connection'
 
     def on_close(self):
         CardSocketHandler.connections.remove(self)
@@ -86,7 +89,7 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_message(self, message):
         data = tornado.escape.json_decode(message)
-        if data['join']:
+        if 'join' in data:
             code = data['join']
             if code in self.sessions:
                 self.code = code
@@ -100,7 +103,9 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
     def cleanup_sessions(cls):
         now = time.time()
         for code, session in cls.sessions.items():
-            if session.timeout > now:
+            if session.timeout < now:
+                print 'session', code, 'timed out:', session.timeout, now
+                session.broadcast('session timed out');
                 session.kick_clients()
                 del cls.sessions[code]
 
