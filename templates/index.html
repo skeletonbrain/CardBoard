@@ -56,10 +56,10 @@
       var data = $.parseJSON(event.data);
 
       if ('message' in data) {
-        displayMessage(data.message);
+        displayMessage('server: ' + data.message);
       }
       if ('error' in data) {
-        displayError(data.error);
+        displayError('server: ' + data.error);
       }
       if ('status' in data) {
         this.status = data['status'];
@@ -67,12 +67,12 @@
     },
 
     opened: function() {
-      displayMessage('Connected');
+      displayMessage('Socket opened');
       this.send({join: this.code});
     },
 
     closed: function() {
-      displayMessage('Disconnected');
+      displayMessage('Socket closed');
       $('#sessionTabs').show();
       this.ws = null;
     },
