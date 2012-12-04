@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+  <title>CardBoard</title>
+  <meta name="description" content="CardBoard game framework.">
+  <meta name="author" content="skeletonbrain">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
+  <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
+  <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+  <script src="/static/js/base.js"></script>
+  <script>
+    $(function() {
+      $("#sessionTabs").tabs({active:0});
+    });
+  </script>
+</head>
+<body>
+  <div id="sessionTabs">
+    <ul>
+      <li><a href="#sessionJoin">Join</a></li>
+      <li><a href="#sessionCreate">Create</a></li>
+    </ul>
+    <div id="sessionJoin">
+      <form>
+        <input type="text" name="code" placeholder="Invite Code" />
+        <input type="submit" value="Join" />
+        {{ xsrf_form_html() }}
+      </form>
+    </div>
+    <div id="sessionCreate">
+      <form>
+        <input type="text" name="url" placeholder="Deck URL" />
+        <input type="submit" value="Create" />
+        {{ xsrf_form_html() }}
+      </form>
+    </div>
+  </div>
+
+  <div id="messages">
+  </div>
+
+  <script>
+  function processMessage(data) {
+    console.log('socket read', data);
+    if ('message' in data) {
+      displayMessage(data.message);
+    }
+    if ('error' in data) {
+      displayError(data.error);
+    }
+  }
+
+  function joinLobby(code) {
+    var content = $('#messages');
+
+    if ("WebSocket" in window) {
+        var ws = new WebSocket('ws://' + location.host + '/ws');
+
+        ws.onopen = function() {
+          displayMessage('Connected');
+          ws.send(JSON.stringify({join: code}));
+        }
+        ws.onmessage = function(event) {
+            console.log('data is', event.data);
+          processMessage($.parseJSON(event.data));
+        }
+        ws.onclose = function() {
+          displayMessage('Disconnected');
+          $('#sessionTabs').show();
+        }
+    }
+    else {
+      alert("This website requires WebSockets.");
+    }
+  }
+
+  function displayMessage(message) {
+    $("<div>" + message + "</div>").appendTo($('#messages'));
+  }
+
+  function displayError(error) {
+    $("<div class='error'>" + error + "</div>").appendTo($('#messages'));
+  }
+
+  $("#sessionCreate form").submit(function(event) {
+    event.preventDefault();
+    $('#sessionTabs').hide();
+
+    $.post('/session/create', $(this).serialize(),
+      function(data) {
+        joinLobby(data['code']);
+      }, 'json'
+    ).error(function(xhr, status, error) {
+      $('#sessionTabs').show();
+      displayError(error);
+    });
+  });
+
+  $("#sessionJoin form").submit(function(event) {
+    event.preventDefault();
+    $('#sessionTabs').hide();
+
+    joinLobby($(this).find('input[name="code"]').val());
+  });
+</script>
+
+</body>
+</html>
