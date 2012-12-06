@@ -64,29 +64,52 @@
     ws: null,
     code: null,
     state: null,
+    player_id: null,
+    player_vars: [],
     deck: {},
-    my_cards: [],
+    cards: {},
 
     processMessage: function(event) {
       var data = $.parseJSON(event.data);
 
       var new_state = null;
 
+      if ('state' in data) {
+        new_state = data.state;
+      }
+      if ('player_id' in data) {
+        this.player_id = data.player_id;
+      }
+      if ('player_vars' in data) {
+        if (new_state === 'start') {
+          this.player_vars = data.player_vars;
+        }
+        else {
+          this.merge_vars(data.player_vars);
+        }
+      }
       if ('message' in data) {
         displayMessage('server: ' + data.message);
       }
       if ('error' in data) {
         displayError('server: ' + data.error);
       }
-      if ('status' in data) {
-        new_state = data['status'];
-      }
       if ('deck' in data) {
         displayMessage('Loaded new deck');
-        this.deck = data['deck'];
+        this.deck = data.deck;
+      }
+      if ('spawn_card' in data) {
+        this.cards[data.id] = data.spawn_card;
+        this.add_card_to_board(data.spawn_card);
       }
 
       this.update_state(new_state);
+    },
+
+    add_card_to_board: function(data) {
+      var card = $('<div class="card">' + data.card + '</div>');
+      // card.css(this.deck.style);
+      $('#board').append(card);
     },
 
     opened: function() {
@@ -104,22 +127,51 @@
       this.ws.send(JSON.stringify(data));
     },
 
+    merge_vars: function(vars) {
+      for (player in vars) {
+        for (key in vars[player]) {
+            this.player_vars[player][key] = vars[player][key];
+        }
+      }
+      this.update_state();
+    },
+
     update_state: function(state) {
-      this.state = state;
+      if (state) {
+        this.state = state;
+      }
 
       var deck = $('#deck');
 
-      if (state == 'start') {
+      if (this.state === 'start') {
 
         deck.css(this.deck.style);
         deck.css('background-image', 'url("' + this.deck.back + '")');
         deck.addClass('card');
+        deck.click(function() { game.draw_card() });
 
-        this.my_cards = this.deck.cards.slice();
+        this.update_deck();
+
+        this.state = 'playing';
       }
+      else if (this.state === 'playing') {
+        this.update_deck();
+      }
+    },
+
+    draw_card: function() {
+      this.send({'action': 'draw'});
+    },
+
+    my_vars: function() {
+      return this.player_vars[this.player_id];
+    },
+
+    update_deck: function() {
+      var deck = $('#deck');
 
       deck.empty();
-      var number = $('<div class="number">' + this.my_cards.length + '</div>');
+      var number = $('<div class="number">' + this.my_vars().cards_left + '</div>');
       deck.append(number);
       number.css('padding-top', (deck.height() - number.height()) * 0.5);
     }

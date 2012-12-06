@@ -10,7 +10,7 @@ import os
 import hashlib
 import time
 import json
-import httplib
+import random
 
 
 MAX_PLAYERS = 2
@@ -35,17 +35,20 @@ settings = dict(
 class Session(object):
     def __init__(self, code, deck):
         self.clients = []
+        self.client_decks = {}
+        self.client_id = {}
         self.code = code
         self.timeout = time.time() + 60*5
-        self.cards = []
+        self.deck_cards = []
         self.card_back = ''
         self.card_style = {}
         self.read_deck(deck)
+        self.cards = {}
 
     def read_deck(self, deck):
         data = tornado.escape.json_decode(open(deck, 'r').read())
         path = os.path.dirname(deck)
-        self.cards = [path + '/' + card for card in data['cards']]
+        self.deck_cards = [path + '/' + card for card in data['cards']]
         self.card_style = data['style']
         self.card_back = path + '/' + data['back']
 
@@ -68,16 +71,56 @@ class Session(object):
             self.start_game()
 
     def start_game(self):
-        message = {
-            'status': 'start',
-            'message': 'game full, starting',
-            'deck': {
-                'cards': self.cards,
-                'back': self.card_back,
-                'style': self.card_style
+        self.client_id = {client: num for num,client in enumerate(self.clients)}
+
+        for client in self.clients:
+            deck = self.client_decks[client] = list(range(len(self.deck_cards)))
+            random.shuffle(deck)
+
+        client_vars = {}
+        for num, client in enumerate(self.clients):
+            client_vars[num] = {
+                'cards_left': len(self.client_decks[client])
             }
-        }
-        self.broadcast(message)
+
+        for num, client in enumerate(self.clients):
+            message = {
+                'state': 'start',
+                'message': 'game full, starting',
+                'deck': {
+                    'cards': self.deck_cards,
+                    'back': self.card_back,
+                    'style': self.card_style,
+                },
+                'player_vars': client_vars,
+                'player_id': num
+            }
+            client.write_message(message)
+
+    def on_action(self, client, action):
+        if action == 'draw':
+            num = self.client_id[client]
+            card = self.client_decks[client].pop()
+            card_id = len(self.cards)
+
+            card_data = {
+                'player': num,
+                'card': card,
+                'id': card_id
+            }
+
+            self.cards[card_id] = card_data
+
+            message = {
+              'spawn_card': card_data,
+              'player_vars': {
+                  num: {
+                      'cards_left': len(self.client_decks[client])
+                  }
+              },
+              'message': 'player {} drew a card'.format(num)
+            }
+            self.broadcast(message)
 
     def broadcast(self, message):
         for client in self.clients:
@@ -126,6 +169,8 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
             else:
                 self.write_message({'error': 'no session found'})
                 self.close()
+        if 'action' in data:
+            self.session.on_action(self, data['action'])
 
     @classmethod
     def cleanup_sessions(cls):
