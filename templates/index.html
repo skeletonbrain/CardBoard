@@ -228,6 +228,7 @@
 
   function addMessage(type, text) {
     var messages = $('#messages');
+    messages.show();
     var div = $("<div class='" + type + "'>" + text + "</div>");
     div.hide();
     div.appendTo(messages);

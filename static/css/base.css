@@ -6,8 +6,9 @@ body {
 }
 
 #messages {
+  display: none;
   background-color: white;
-  max-height: 10em;
+  max-height: 6em;
   overflow-y: scroll;
 }
 
