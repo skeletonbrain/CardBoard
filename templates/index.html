@@ -120,16 +120,17 @@
     },
 
     add_card_to_board: function(data) {
-      var card = $('<div class="card"></div>');
-      card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
+      var card = $('<div class="card draggable"></div>');
+      card.draggable({stack: '.card', snap: true});
       card.css(this.deck.style);
+      card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
       $('#board').append(card);
     },
 
     opened: function() {
       displayMessage('Socket opened');
       displayMessage('<a href="' + location.protocol + '//' + location.host
-                     + '?code=' + this.code + '">Invite link</a>');
+                     + '?code=' + this.code + '" target="_blank">Invite link</a>');
       this.send({join: this.code});
     },
 
@@ -188,6 +189,7 @@
 
       deck.empty();
       var number = $('<div class="number">' + this.my_vars().cards_left + '</div>');
+      number.disableSelection();
       deck.append(number);
       number.css('padding-top', (deck.height() - number.height()) * 0.5);
     }

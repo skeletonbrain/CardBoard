@@ -20,7 +20,15 @@ body {
 }
 
 #deck {
+  cursor: pointer;
   float: right;
+  display: block;
+  position: relative;
+  z-index: -1;
+}
+
+#board {
+  clear: both;
 }
 
 .number {
@@ -30,17 +38,23 @@ body {
   text-align: center;
 }
 
+.draggable {
+  cursor: move;
+}
+
 .card {
-    background-repeat: no-repeat;
-    background-position: center;
-    -webkit-background-size: contain;
-    -moz-background-size: contain;
-    -o-background-size: contain;
-    background-size: contain;
-    /*
-    -moz-box-shadow: black 0.1em 0.1em 0.2em;
-    -webkit-box-shadow: black 0.1em 0.1em 0.2em;
-    box-shadow: black 0.1em 0.1em 0.2em;
-    */
+  position: absolute;
+  display: inline;
+  background-repeat: no-repeat;
+  background-position: center;
+  -webkit-background-size: contain;
+  -moz-background-size: contain;
+  -o-background-size: contain;
+  background-size: contain;
+  /*
+  -moz-box-shadow: black 0.1em 0.1em 0.2em;
+  -webkit-box-shadow: black 0.1em 0.1em 0.2em;
+  box-shadow: black 0.1em 0.1em 0.2em;
+  */
 }
 
