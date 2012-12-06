@@ -122,9 +122,10 @@
 
     add_card_to_board: function(data) {
       var card = $('<div class="card draggable"></div>');
-      card.draggable({stack: '.card', snap: true});
       card.css(this.deck.style);
       card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
+      card.draggable({stack: '.card', snap: true});
+      card.css('position', 'absolute');
       $('#board').append(card);
     },
 
