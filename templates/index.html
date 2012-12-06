@@ -32,7 +32,11 @@
       </div>
       <div id="sessionCreate">
         <form>
-          <input type="text" name="url" placeholder="Deck URL" />
+          <select name="deck">
+            {% for deck in decks %}
+            <option>{{ deck }}</option>
+            {% end %}
+          </select>
           <input type="submit" value="Create" />
           {{ xsrf_form_html() }}
         </form>
@@ -40,6 +44,15 @@
     </div>
 
     <div id="messages">
+    </div>
+
+    <div id="board">
+    </div>
+
+    <div id="deck">
+    </div>
+
+    <div id="hand">
     </div>
 
   </div>
@@ -50,10 +63,14 @@
 
     ws: null,
     code: null,
-    status: null,
+    state: null,
+    deck: {},
+    my_cards: [],
 
     processMessage: function(event) {
       var data = $.parseJSON(event.data);
+
+      var new_state = null;
 
       if ('message' in data) {
         displayMessage('server: ' + data.message);
@@ -62,8 +79,14 @@
         displayError('server: ' + data.error);
       }
       if ('status' in data) {
-        this.status = data['status'];
+        new_state = data['status'];
       }
+      if ('deck' in data) {
+        displayMessage('Loaded new deck');
+        this.deck = data['deck'];
+      }
+
+      this.update_state(new_state);
     },
 
     opened: function() {
@@ -79,6 +102,26 @@
 
     send: function(data) {
       this.ws.send(JSON.stringify(data));
+    },
+
+    update_state: function(state) {
+      this.state = state;
+
+      var deck = $('#deck');
+
+      if (state == 'start') {
+
+        deck.css(this.deck.style);
+        deck.css('background-image', 'url("' + this.deck.back + '")');
+        deck.addClass('card');
+
+        this.my_cards = this.deck.cards.slice();
+      }
+
+      deck.empty();
+      var number = $('<div class="number">' + this.my_cards.length + '</div>');
+      deck.append(number);
+      number.css('padding-top', (deck.height() - number.height()) * 0.5);
     }
   };
 
@@ -87,10 +130,7 @@
 
     if ("WebSocket" in window) {
         game.ws = new WebSocket('ws://' + location.host + '/ws');
-        console.log('setting code', code);
         game.code = code;
-        console.log('game code', game.code);
-        console.log('game', game);
         game.status = 'lobby';
 
         game.ws.onopen = function() { game.opened(); };

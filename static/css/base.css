@@ -19,3 +19,28 @@ body {
   color: white;
 }
 
+#deck {
+  float: right;
+}
+
+.number {
+  font-size: 1in;
+  color: white;
+  text-shadow: black 0.1em 0.1em 0.2em;
+  text-align: center;
+}
+
+.card {
+    background-repeat: no-repeat;
+    background-position: center;
+    -webkit-background-size: contain;
+    -moz-background-size: contain;
+    -o-background-size: contain;
+    background-size: contain;
+    /*
+    -moz-box-shadow: black 0.1em 0.1em 0.2em;
+    -webkit-box-shadow: black 0.1em 0.1em 0.2em;
+    box-shadow: black 0.1em 0.1em 0.2em;
+    */
+}
+

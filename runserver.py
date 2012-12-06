@@ -10,11 +10,16 @@ import os
 import hashlib
 import time
 import json
+import httplib
 
 
 MAX_PLAYERS = 2
 
 ROOT = os.path.dirname(__file__)
+
+DECKS = {
+    'Standard 52 Cards': 'static/decks/playing_cards.json'
+}
 
 
 settings = dict(
@@ -28,14 +33,25 @@ settings = dict(
 
 
 class Session(object):
-    def __init__(self, code):
+    def __init__(self, code, deck):
         self.clients = []
         self.code = code
         self.timeout = time.time() + 60*5
+        self.cards = []
+        self.card_back = ''
+        self.card_style = {}
+        self.read_deck(deck)
+
+    def read_deck(self, deck):
+        data = tornado.escape.json_decode(open(deck, 'r').read())
+        path = os.path.dirname(deck)
+        self.cards = [path + '/' + card for card in data['cards']]
+        self.card_style = data['style']
+        self.card_back = path + '/' + data['back']
 
     def add_client(self, client):
         if len(self.clients) >= MAX_PLAYERS:
-            client.write_message({'error': 'there are already two players in this session'})
+            client.write_message({'error': 'there are already {} players in this session'.format(MAX_PLAYERS)})
             client.close()
             return
 
@@ -49,7 +65,19 @@ class Session(object):
         if len(self.clients) < MAX_PLAYERS:
             self.broadcast({'message': 'invite another player with this code: {}'.format(self.code)})
         else:
-            self.broadcast({'status': 'start', 'message': 'game full, starting'})
+            self.start_game()
+
+    def start_game(self):
+        message = {
+            'status': 'start',
+            'message': 'game full, starting',
+            'deck': {
+                'cards': self.cards,
+                'back': self.card_back,
+                'style': self.card_style
+            }
+        }
+        self.broadcast(message)
 
     def broadcast(self, message):
         for client in self.clients:
@@ -110,10 +138,10 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
                 del cls.sessions[code]
 
     @classmethod
-    def create_session(cls, code):
+    def create_session(cls, code, deck):
         cls.cleanup_sessions()
         assert code not in cls.sessions
-        cls.sessions[code] = Session(code)
+        cls.sessions[code] = Session(code, deck)
 
     @classmethod
     def make_session_code(cls):
@@ -125,22 +153,29 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
 
 class IndexHandler(tornado.web.RequestHandler):
     def get(self):
-        data = {}
+        data = {
+            'decks': sorted(DECKS.keys())
+        }
         self.render('index.html', **data)
 
 
 class SessionHandler(tornado.web.RequestHandler):
     def post(self, mode):
         if mode == 'create':
-            self.create(self.get_argument('url'))
+            self.create(self.get_argument('deck'))
 
-    def create(self, url):
-        # TODO: validate url
+    def create(self, deck):
+
+        if deck not in DECKS:
+            self.set_status(400)
+            self.finish('unknown deck')
+            return
+
         data = {
             'code': CardSocketHandler.make_session_code()
         }
-        CardSocketHandler.create_session(data['code'])
-        print 'session create for url {}'.format(url)
+        CardSocketHandler.create_session(data['code'], DECKS[deck])
+        print 'session create for deck {}'.format(deck)
         self.write(json.dumps(data))
 
 
