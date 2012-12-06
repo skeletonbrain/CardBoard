@@ -11,8 +11,21 @@
   <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
   <script src="/static/js/base.js"></script>
   <script>
+    /* from http://stackoverflow.com/questions/1403888/get-url-parameter-with-jquery */
+    function getURLParameter(name) {
+      return decodeURI(
+        (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
+      );
+    }
+
     $(function() {
       $("#sessionTabs").tabs({active:0});
+
+      var code = getURLParameter('code');
+
+      if (code !== 'null') {
+        $('input[name="code"]').val(code);
+      }
     });
   </script>
 </head>
@@ -107,13 +120,16 @@
     },
 
     add_card_to_board: function(data) {
-      var card = $('<div class="card">' + data.card + '</div>');
-      // card.css(this.deck.style);
+      var card = $('<div class="card"></div>');
+      card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
+      card.css(this.deck.style);
       $('#board').append(card);
     },
 
     opened: function() {
       displayMessage('Socket opened');
+      displayMessage('<a href="' + location.protocol + '//' + location.host
+                     + '?code=' + this.code + '">Invite link</a>');
       this.send({join: this.code});
     },
 
@@ -181,15 +197,17 @@
     var content = $('#messages');
 
     if ("WebSocket" in window) {
-        game.ws = new WebSocket('ws://' + location.host + '/ws');
-        game.code = code;
-        game.status = 'lobby';
+      game.ws = new WebSocket('ws://' + location.host + '/ws');
+      game.code = code;
+      game.status = 'lobby';
 
-        game.ws.onopen = function() { game.opened(); };
+      game.ws.onopen = function() {
+        game.opened();
+      };
 
-        game.ws.onmessage = function(event) { game.processMessage(event); };
+      game.ws.onmessage = function(event) { game.processMessage(event); };
 
-        game.ws.onclose = function() { game.closed(); };
+      game.ws.onclose = function() { game.closed(); };
     }
     else {
       alert("This website requires WebSockets.");
