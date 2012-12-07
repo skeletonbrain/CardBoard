@@ -225,8 +225,10 @@
         drag_helper.css(this.deck.style);
         drag_helper.css('background-image', deck_back);
         deck.draggable({
+          snap: true,
           helper: function() { return drag_helper },
-          stop: function(e, ui) { self.draw_card([ui.offset.left, ui.offset.top]); }
+          stop: function(e, ui) { self.draw_card([ui.offset.left, ui.offset.top]); },
+          zIndex: 1000
         });
 
         this.update_deck();
