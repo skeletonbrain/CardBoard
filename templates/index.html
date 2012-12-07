@@ -73,6 +73,21 @@
 
   <script>
 
+  function restack_draggables(selector, top) {
+    /* from jquery.ui.draggable.js, MIT license */
+    var group = $.makeArray($(selector)).sort(function(a,b) {
+            return (parseInt($(a).css("zIndex"),10) || 0) - (parseInt($(b).css("zIndex"),10) || 0);
+    });
+    if (!group.length) { return; }
+
+    var min = parseInt(group[0].style.zIndex) || 0;
+    $(group).each(function(i) {
+            this.style.zIndex = min + i;
+    });
+
+    $(top)[0].style.zIndex = min + group.length;
+  }
+
   var game = {
 
     ws: null,
@@ -113,19 +128,44 @@
         this.deck = data.deck;
       }
       if ('spawn_card' in data) {
-        this.cards[data.id] = data.spawn_card;
         this.add_card_to_board(data.spawn_card);
+      }
+      if ('move' in data) {
+        this.move_card(data.move);
       }
 
       this.update_state(new_state);
     },
 
+    move_card: function(data) {
+      var card = this.cards[data.id];
+      card.animate({ left: data.pos[0], top: data.pos[1] }, 250);
+      restack_draggables('.card', card);
+      //card.css('z-index', data.pos[2]);
+    },
+
+    update_card: function(card) {
+      var pos = card.offset();
+      var zindex = card.css('z-index');
+      this.send({'move': {
+        'id': card.card_data.id,
+        'pos': [pos.left, pos.top, zindex]
+      }});
+    },
+
     add_card_to_board: function(data) {
+      var self = this;
       var card = $('<div class="card draggable"></div>');
+      card.card_data = data;
       card.css(this.deck.style);
       card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
-      card.draggable({stack: '.card', snap: true});
+      card.draggable({
+        stack: '.card',
+        snap: true,
+        stop: function() { self.update_card(card); }
+      });
       card.css('position', 'absolute');
+      this.cards[data.id] = card;
       $('#board').append(card);
     },
 

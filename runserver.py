@@ -122,8 +122,17 @@ class Session(object):
             }
             self.broadcast(message)
 
-    def broadcast(self, message):
-        for client in self.clients:
+    def on_move(self, client, data):
+        card = int(data['id'])
+        pos = map(int, data['pos'])
+        self.broadcast({'move': {
+            'id': card,
+            'pos': pos
+        }}, skip=client)
+
+
+    def broadcast(self, message, skip=None):
+        for client in (x for x in self.clients if x != skip):
             client.write_message(message)
 
     def kick_clients(self):
@@ -171,6 +180,8 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
                 self.close()
         if 'action' in data:
             self.session.on_action(self, data['action'])
+        if 'move' in data:
+            self.session.on_move(self, data['move'])
 
     @classmethod
     def cleanup_sessions(cls):
