@@ -28,6 +28,10 @@ body {
   z-index: -1;
 }
 
+#hand {
+  background: rgb(1, 53, 24);
+}
+
 #board {
   clear: both;
 }

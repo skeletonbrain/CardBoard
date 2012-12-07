@@ -156,7 +156,7 @@
     add_card_to_board: function(data) {
       var self = this;
       var card = $('<div class="card draggable"></div>');
-      card.card_data = data;
+      card.card_data = {id: data.id, player: data.player, card: data.card};
       card.css(this.deck.style);
       card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
       card.draggable({
@@ -165,6 +165,15 @@
         stop: function() { self.update_card(card); }
       });
       card.css('position', 'absolute');
+
+      if (this.player_id == data.player) {
+        card.offset({left: data.pos[0], top: data.pos[1]});
+      }
+      else {
+        card.offset($('#deck').offset());
+        card.animate({ left: data.pos[0], top: data.pos[1] }, 250);
+      }
+      restack_draggables('.card', card);
       this.cards[data.id] = card;
       $('#board').append(card);
     },
@@ -196,6 +205,8 @@
     },
 
     update_state: function(state) {
+      var self = this;
+
       if (state) {
         this.state = state;
       }
@@ -203,11 +214,20 @@
       var deck = $('#deck');
 
       if (this.state === 'start') {
+        var deck_back = 'url("' + this.deck.back + '")';
 
         deck.css(this.deck.style);
-        deck.css('background-image', 'url("' + this.deck.back + '")');
+        deck.css('background-image', deck_back);
         deck.addClass('card');
-        deck.click(function() { game.draw_card() });
+        // deck.click(function() { game.draw_card() });
+
+        var drag_helper = $('<div class="card"></div>');
+        drag_helper.css(this.deck.style);
+        drag_helper.css('background-image', deck_back);
+        deck.draggable({
+          helper: function() { return drag_helper },
+          stop: function(e, ui) { self.draw_card([ui.offset.left, ui.offset.top]); }
+        });
 
         this.update_deck();
 
@@ -218,8 +238,8 @@
       }
     },
 
-    draw_card: function() {
-      this.send({'action': 'draw'});
+    draw_card: function(pos) {
+      this.send({'draw': pos});
     },
 
     my_vars: function() {

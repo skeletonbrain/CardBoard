@@ -97,30 +97,31 @@ class Session(object):
             }
             client.write_message(message)
 
-    def on_action(self, client, action):
-        if action == 'draw':
-            num = self.client_id[client]
-            card = self.client_decks[client].pop()
-            card_id = len(self.cards)
+    def on_draw(self, client, pos):
+        num = self.client_id[client]
+        card = self.client_decks[client].pop()
+        card_id = len(self.cards)
+        pos = map(int, pos);
 
-            card_data = {
-                'player': num,
-                'card': card,
-                'id': card_id
-            }
+        card_data = {
+            'player': num,
+            'card': card,
+            'id': card_id,
+            'pos': pos
+        }
 
-            self.cards[card_id] = card_data
+        self.cards[card_id] = card_data
 
-            message = {
-              'spawn_card': card_data,
-              'player_vars': {
-                  num: {
-                      'cards_left': len(self.client_decks[client])
-                  }
-              },
-              'message': 'player {} drew a card'.format(num)
-            }
-            self.broadcast(message)
+        message = {
+            'spawn_card': card_data,
+            'player_vars': {
+                num: {
+                    'cards_left': len(self.client_decks[client])
+                }
+            },
+            'message': 'player {} drew a card'.format(num)
+        }
+        self.broadcast(message)
 
     def on_move(self, client, data):
         card = int(data['id'])
@@ -178,8 +179,8 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
             else:
                 self.write_message({'error': 'no session found'})
                 self.close()
-        if 'action' in data:
-            self.session.on_action(self, data['action'])
+        if 'draw' in data:
+            self.session.on_draw(self, data['draw'])
         if 'move' in data:
             self.session.on_move(self, data['move'])
 
