@@ -64,6 +64,39 @@ function restackDraggables(selector, top) {
 }
 
 
+
+function CardStack(container, style) {
+    this.container = container;
+    this.image = null;
+    this.count = null;
+
+    container.css(style);
+    container.addClass('card');
+
+    this.setImage = function(image) {
+        this.image = image;
+        this.container.css('background-image', 'url(' + image + ')');
+    }
+
+    this.setCount = function(count) {
+        this.count = count;
+        this.update();
+    }
+
+    this.update = function() {
+        var c = this.container;
+        c.empty();
+
+        if (this.count) {
+            var number = $('<div class="number">' + this.count + '</div>');
+            number.disableSelection();
+            c.append(number);
+            number.css('padding-top', (c.height() - number.height()) * 0.5);
+        }
+    }
+}
+
+
 var game = {
 
     ws: null,
@@ -72,6 +105,7 @@ var game = {
     player_id: null,
     player_vars: [],
     deck: {},
+    deck_stack: null,
     cards: {},
 
 
@@ -82,6 +116,7 @@ var game = {
         this.player_id = null;
         this.player_vars = [];
         this.deck = {};
+        this.deck_stack = null;
         this.cards = {};
 
         $('#board').empty();
@@ -125,7 +160,6 @@ var game = {
         if ('move' in data) {
             this.moveCard(data.move);
         }
-        console.log('message', data);
 
         this.updateState(new_state);
     },
@@ -153,8 +187,7 @@ var game = {
         var self = this;
         var card = $('<div class="card draggable"></div>');
         card.card_data = {id: data.id, player: data.player, card: data.card};
-        card.css(this.deck.style);
-        card.css('background-image', 'url("' + this.deck.cards[data.card] + '")');
+        this.decorateCard(card, this.deck.cards[data.card]);
         card.draggable({
             stack: '.card',
             snap: true,
@@ -172,6 +205,15 @@ var game = {
         restackDraggables('.card', card);
         this.cards[data.id] = card;
         $('#board').append(card);
+    },
+
+
+    decorateCard: function(container, image) {
+        container.addClass('card');
+        container.css(game.deck.style);
+        if (image) {
+            container.css('background-image', 'url(' + image + ')');
+        }
     },
 
 
@@ -216,38 +258,25 @@ var game = {
 
         if (this.state === 'start') {
 
-            var deck_back = 'url("' + this.deck.back + '")';
-
-            console.log(1, deck);
-            deck.css(this.deck.style);
-            console.log(2);
-            deck.css('background-image', deck_back);
-            console.log(3);
-            deck.addClass('card');
-            console.log(4);
-            // deck.click(function() { game.drawCard() });
+            this.deck_stack = new CardStack(deck, this.deck.style);
+            this.deck_stack.setImage(this.deck.back);
 
             var drag_helper = $('<div class="card"></div>');
-            console.log(5);
-            drag_helper.css(this.deck.style);
-            console.log(6);
-            drag_helper.css('background-image', deck_back);
-            console.log(7);
+            this.decorateCard(drag_helper, this.deck.back);
+            drag_helper.style = deck[0].style;
             deck.draggable({
                 snap: true,
                 helper: function() { return drag_helper },
                 stop: function(e, ui) { self.drawCard([ui.offset.left, ui.offset.top]); },
                 zIndex: 1000
             });
-            console.log(8);
 
-            this.updateDeck();
-            console.log(9);
+            this.deck_stack.setCount(this.myVars().cards_left);
 
             this.state = 'playing';
         }
         else if (this.state === 'playing') {
-            this.updateDeck();
+            this.deck_stack.setCount(this.myVars().cards_left);
         }
     },
 
@@ -260,15 +289,4 @@ var game = {
     myVars: function() {
         return this.player_vars[this.player_id];
     },
-
-
-    updateDeck: function() {
-        var deck = $('#deck');
-
-        deck.empty();
-        var number = $('<div class="number">' + this.myVars().cards_left + '</div>');
-        number.disableSelection();
-        deck.append(number);
-        number.css('padding-top', (deck.height() - number.height()) * 0.5);
-    }
 };

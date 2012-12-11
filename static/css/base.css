@@ -5,6 +5,12 @@ body {
     rgb(0,155,107) */
 }
 
+.rounded {
+  -webkit-border-radius: 6px;
+  -moz-border-radius: 6px;
+  border-radius: 6px;
+}
+
 #messages {
   display: none;
   background-color: white;
@@ -24,12 +30,15 @@ body {
   cursor: pointer;
   float: right;
   display: block;
-  position: relative;
   z-index: -1;
 }
 
 #hand {
   background: rgb(1, 53, 24);
+}
+
+#players {
+  float: right;
 }
 
 #board {
