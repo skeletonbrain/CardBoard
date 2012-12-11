@@ -63,7 +63,12 @@ class Session(object):
             return
 
         self.clients.append(client)
-        self.broadcast({'message': '{}/{} clients connected'.format(len(self.clients), MAX_PLAYERS)})
+        self.broadcast({'message': '{} joined, {}/{} clients connected'.format(
+                            client.player_name, len(self.clients), MAX_PLAYERS)})
+
+        if len(self.clients) > 1:
+            player_names = ', '.join(x.player_name for x in self.clients)
+            client.write_message({'message': 'players connected: {}'.format(player_names)})
 
         if len(self.clients) < MAX_PLAYERS:
             self.broadcast({'message': 'invite another player with this code: {}'.format(self.code)})
@@ -80,7 +85,8 @@ class Session(object):
         client_vars = {}
         for num, client in enumerate(self.clients):
             client_vars[num] = {
-                'cards_left': len(self.client_decks[client])
+                'cards_left': len(self.client_decks[client]),
+                'player_name': client.player_name
             }
 
         for num, client in enumerate(self.clients):
@@ -171,9 +177,12 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         data = tornado.escape.json_decode(message)
         if 'join' in data:
-            code = data['join']
+            code = data['join']['code']
+            name = data['join']['name']
+            print 'client named {} trying to join {}'.format(name, code)
             if code in self.sessions:
                 self.code = code
+                self.player_name = name
                 self.session = self.sessions[code]
                 self.session.add_client(self)
             else:
