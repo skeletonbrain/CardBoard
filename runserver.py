@@ -13,7 +13,7 @@ import json
 import random
 
 
-MAX_PLAYERS = 2
+MAX_PLAYERS = 1
 
 ROOT = os.path.dirname(__file__)
 

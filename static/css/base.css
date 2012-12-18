@@ -18,23 +18,34 @@ body {
   overflow-y: scroll;
 }
 
-#messages div {
-}
-
 #messages .error {
   background-color: red;
   color: white;
 }
 
+#hud {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  padding: 0;
+  margin: 0;
+  z-index: 999;
+}
+
 #deck {
   cursor: pointer;
-  float: right;
-  display: block;
-  z-index: -1;
+  float: left;
 }
 
 #hand {
   background: rgb(1, 53, 24);
+  float: left;
+  padding-right: 5em;
+  padding-left: .5em;
+}
+
+#hand .card {
+  float: left;
 }
 
 #players {
@@ -42,13 +53,14 @@ body {
 }
 
 #board {
+  background: grey;
   clear: both;
 }
 
 .number {
   font-size: 1in;
   color: white;
-  text-shadow: black 0.1em 0.1em 0.2em;
+  text-shadow: black 0.05em 0.05em 0.1em;
   text-align: center;
 }
 
@@ -57,7 +69,6 @@ body {
 }
 
 .card {
-  display: inline;
   background-repeat: no-repeat;
   background-position: center;
   -webkit-background-size: contain;

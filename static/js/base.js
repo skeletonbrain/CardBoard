@@ -107,6 +107,7 @@ var game = {
     deck: {},
     deck_stack: null,
     cards: {},
+    queued_cards: [],
 
 
     restartGame: function() {
@@ -118,10 +119,31 @@ var game = {
         this.deck = {};
         this.deck_stack = null;
         this.cards = {};
+        this.queued_cards = [];
 
         $('#board').empty();
         $('#deck').empty();
         $('#hand').empty();
+    },
+
+
+    resize: function() {
+        if (this.deck.style) {
+            $('#hand').height(this.deck.style.height);
+        }
+
+        var height = $(window).height();
+
+        $.each([
+            $('#messages'),
+            $('#sessionTabs')
+        ], function(idx, elem) {
+            if (elem.is(':visible')) {
+              height -= elem.outerHeight(true);
+            }
+        });
+
+        $('#board').outerHeight(height);
     },
 
 
@@ -175,10 +197,9 @@ var game = {
 
     updateCard: function(card) {
         var pos = card.offset();
-        var zindex = card.css('z-index');
         this.send({'move': {
             'id': card.card_data.id,
-            'pos': [pos.left, pos.top, zindex]
+            'pos': [pos.left, pos.top]
         }});
     },
 
@@ -191,7 +212,9 @@ var game = {
         card.draggable({
             stack: '.card',
             snap: true,
-            stop: function() { self.updateCard(card); }
+            stop: function() { self.updateCard(card); },
+            connectToSortable: "#hand",
+            containment: 'window'
         });
         card.css('position', 'absolute');
 
@@ -205,6 +228,69 @@ var game = {
         restackDraggables('.card', card);
         this.cards[data.id] = card;
         $('#board').append(card);
+    },
+
+
+    boardSetup: function() {
+        var self = this;
+
+        var deck = $('#deck');
+
+        this.deck_stack = new CardStack(deck, this.deck.style);
+        this.deck_stack.setImage(this.deck.back);
+
+        var drag_helper = $('<div class="card draggable"></div>');
+        this.decorateCard(drag_helper, this.deck.back);
+        drag_helper.style = deck[0].style;
+        deck.draggable({
+            snap: true,
+            helper: function() { return drag_helper.clone() },
+            zIndex: 1000,
+            connectToSortable: "#hand"
+        });
+
+        this.deck_stack.setCount(this.myVars().cards_left);
+
+        $('#hand')[0].innerHTML = '&nbsp;';
+
+        // we need to keep track of the cards as they drag over the hand
+        // otherwise they will trigger drop events on the board
+        var over_hand = false;
+
+        //var drop_target = $('<div id="hand_drop" class="rounded">drop target</div>');
+        //this.decorateCard(drop_target);
+        $('#hand').sortable({
+            revert: true,
+            axis: 'x',
+            containment: 'parent',
+            receive: function(event, ui) {
+                if (ui.item.hasClass('deck-draggable')) {
+                    var elem = $('#hand').find('.deck-draggable');
+                    elem.empty(); // strip numbers
+                    elem.removeClass('deck-draggable');
+                    elem.addClass('card-draw-target');
+                }
+                else {
+                    console.log(ui.item);
+                    ui.item.css('position', 'relative');
+                }
+            },
+            over: function() {
+                over_hand = true;
+            },
+            out: function() {
+                over_hand = false;
+            }
+        });
+
+        $('#board').droppable({
+            drop: function (event, ui) {
+                var elem = ui.draggable;
+                if (elem.hasClass('deck-draggable') && !over_hand) {
+                    self.drawCard('board', [ui.offset.left, ui.offset.top]);
+                }
+            }
+        });
     },
 
 
@@ -254,24 +340,10 @@ var game = {
             this.state = state;
         }
 
-        var deck = $('#deck');
-
         if (this.state === 'start') {
+            this.boardSetup();
 
-            this.deck_stack = new CardStack(deck, this.deck.style);
-            this.deck_stack.setImage(this.deck.back);
-
-            var drag_helper = $('<div class="card"></div>');
-            this.decorateCard(drag_helper, this.deck.back);
-            drag_helper.style = deck[0].style;
-            deck.draggable({
-                snap: true,
-                helper: function() { return drag_helper },
-                stop: function(e, ui) { self.drawCard([ui.offset.left, ui.offset.top]); },
-                zIndex: 1000
-            });
-
-            this.deck_stack.setCount(this.myVars().cards_left);
+            this.resize();
 
             this.state = 'playing';
         }
@@ -281,8 +353,8 @@ var game = {
     },
 
 
-    drawCard: function(pos) {
-       this.send({'draw': pos});
+    drawCard: function(target, pos) {
+       this.send({'target': target, 'draw': pos});
     },
 
 

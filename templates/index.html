@@ -8,8 +8,9 @@
   <link rel="stylesheet" href="/static/css/base.css">
   <link rel="stylesheet" href="/static/css/pepper-grinder/jquery-ui-1.9.2.custom.min.css">
   <script src="/static/js/jquery-1.8.3.min.js"></script>
-  <script src="/static/js/jquery-ui-1.9.2.custom.min.js"></script>
-  <script src="/static/js/jquery.ui.touch-punch.min.js"></script>
+  <!-- <script src="/static/js/jquery-ui-1.9.2.custom.min.js"></script> -->
+  <script src="/static/js/jquery-ui.js"></script>
+  <!-- <script src="/static/js/jquery.ui.touch-punch.min.js"></script> -->
   <script src="/static/js/base.js"></script>
   <script>
     /* from http://stackoverflow.com/questions/1403888/get-url-parameter-with-jquery */
@@ -27,6 +28,12 @@
       if (code !== 'null') {
         $('input[name="code"]').val(code);
       }
+
+      $(window).resize(function() {
+        game.resize();
+      });
+
+      game.resize();
     });
   </script>
 </head>
@@ -66,12 +73,17 @@
     </div>
 
     <div id="board">
+    some content
     </div>
 
-    <div id="deck">
-    </div>
+    <div id="hud">
+      <div id="deck" class="deck-draggable">
+      the deck
+      </div>
 
-    <div id="hand" class="rounded droppable">
+      <div id="hand" class="rounded droppable">
+      the hand
+      </div>
     </div>
 
   </div>
