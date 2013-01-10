@@ -94,10 +94,8 @@ function CardStack(container, deck, scale) {
             var number = $('<div class="number">').text(this.count);
             number.disableSelection();
             c.append(number);
-            number.css({
-                'padding-top': (c.height() - number.height()) * 0.5,
-                'font-size': (this.scale-0.15)  + 'in'
-            });
+            number.css('font-size', (this.scale-0.15)  + 'in');
+            number.css('padding-top', (c.height() - number.height()) * 0.5);
         }
     }
 }
@@ -233,7 +231,7 @@ var game = {
                 card.offset({left: data.pos[0], top: data.pos[1]});
             }
             else { // animate other player's cards so we can tell where they come from
-                card.offset($('#deck').offset());
+                card.offset($('#player-' + data.player).find('.deck').offset());
                 card.animate({ left: data.pos[0], top: data.pos[1] }, 250);
             }
         }
