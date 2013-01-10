@@ -13,7 +13,7 @@ import json
 import random
 
 
-MAX_PLAYERS = 1
+MAX_PLAYERS = 2
 
 ROOT = os.path.dirname(__file__)
 
@@ -35,13 +35,15 @@ settings = dict(
 class Session(object):
     def __init__(self, code, deck):
         self.clients = []
-        self.client_decks = {}
+        self.client_decks = {} # client decks (lists)
+        self.client_hands = {} # client hands (lists)
         self.client_id = {}
-        self.code = code
-        self.timeout = time.time() + 60*5
+        self.code = code # invite code
+        self.timeout = time.time() + 60*5 # how long the session is alive in the pre-game lobby
         self.deck_cards = []
         self.card_back = ''
         self.card_style = {}
+        self.card_ids = [] # array of possible card ids, randomly popped as cards are created
         self.read_deck(deck)
         self.cards = {}
 
@@ -78,14 +80,19 @@ class Session(object):
     def start_game(self):
         self.client_id = {client: num for num,client in enumerate(self.clients)}
 
+        self.card_ids = range(len(self.deck_cards)*len(self.clients))
+        random.shuffle(self.card_ids)
+
         for client in self.clients:
             deck = self.client_decks[client] = list(range(len(self.deck_cards)))
             random.shuffle(deck)
+            self.client_hands[client] = []
 
         client_vars = {}
         for num, client in enumerate(self.clients):
             client_vars[num] = {
                 'cards_left': len(self.client_decks[client]),
+                'cards_hand': 0,
                 'player_name': client.player_name
             }
 
@@ -103,31 +110,52 @@ class Session(object):
             }
             client.write_message(message)
 
-    def on_draw(self, client, pos):
+    def on_draw(self, client, target, pos):
         num = self.client_id[client]
         card = self.client_decks[client].pop()
-        card_id = len(self.cards)
+        card_id = self.card_ids.pop()
         pos = map(int, pos);
 
         card_data = {
             'player': num,
             'card': card,
             'id': card_id,
-            'pos': pos
+            'pos': pos,
+            'target': target
         }
-
-        self.cards[card_id] = card_data
 
         message = {
-            'spawn_card': card_data,
-            'player_vars': {
-                num: {
-                    'cards_left': len(self.client_decks[client])
-                }
-            },
-            'message': 'player {} drew a card'.format(num)
         }
-        self.broadcast(message)
+
+        if target == 'board':
+            self.cards[card_id] = card_data
+
+            self.broadcast({
+                'player_vars': {
+                    num: {
+                        'cards_left': len(self.client_decks[client])
+                    }
+                },
+                'spawn_card': card_data,
+                'message': '{} drew a card and placed it on the board'.format(client.player_name)
+            })
+
+        elif target == 'hand':
+            self.client_hands[client].append(card_data)
+
+            self.broadcast({
+                'player_vars': {
+                    num: {
+                        'cards_left': len(self.client_decks[client]),
+                        'cards_hand': len(self.client_hands[client])
+                    }
+                },
+                'message': '{} drew a card to his/her hand'.format(client.player_name)
+            })
+
+            client.write_message({
+                'spawn_card': card_data
+            })
 
     def on_move(self, client, data):
         card = int(data['id'])
@@ -189,7 +217,7 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
                 self.write_message({'error': 'no session found'})
                 self.close()
         if 'draw' in data:
-            self.session.on_draw(self, data['draw'])
+            self.session.on_draw(self, data['target'], data['draw'])
         if 'move' in data:
             self.session.on_move(self, data['move'])
 

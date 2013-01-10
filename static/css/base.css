@@ -14,7 +14,6 @@ body {
 #messages {
   display: none;
   background-color: white;
-  max-height: 6em;
   overflow-y: scroll;
 }
 
@@ -46,10 +45,25 @@ body {
 
 #hand .card {
   float: left;
+  position: static;
 }
 
 #players {
   float: right;
+  text-align: center;
+}
+
+#players {
+  color: white;
+  font-size: 1.5em;
+  text-shadow: black 1px 1px 1px;
+}
+
+#players .hand {
+}
+
+#players .hand:before {
+    content: "Hand: "
 }
 
 #board {
@@ -58,7 +72,7 @@ body {
 }
 
 .number {
-  font-size: 1in;
+  font-size: 0.85in;
   color: white;
   text-shadow: black 0.05em 0.05em 0.1em;
   text-align: center;
