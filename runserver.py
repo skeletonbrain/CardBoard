@@ -119,11 +119,12 @@ class Session(object):
             }
             client.write_message(message)
 
-    def on_draw(self, client, target, pos):
+    def on_draw(self, client, data):
         num = self.client_id[client]
         card = self.client_decks[client].pop()
         card_id = self.card_ids.pop()
-        pos = map(int, pos);
+        target = data['target']
+        pos = map(int, data['pos'])
 
         card_data = {
             'player': num,
@@ -174,6 +175,30 @@ class Session(object):
             'pos': pos
         }}, skip=client)
 
+    def on_transfer(self, client, data):
+        print 'got transfer'
+        card = int(data['id'])
+        hand = self.client_hands[client]
+        num = self.client_id[client]
+
+        if data['target'] == 'hand':
+            card_data = self.cards.pop(card)
+            self.client_hands[client].append(card_data)
+
+            self.broadcast({
+                'player_vars': {
+                    num: {
+                        'cards_hand': len(hand)
+                    }
+                },
+                'remove_card': {
+                    'id': card,
+                    'player': num
+                },
+                'message': '{} moved a card from the board to his/her hand'.format(client.player_name)
+            })
+        elif data['target'] == 'board':
+            pass
 
     def broadcast(self, message, skip=None):
         for client in (x for x in self.clients if x != skip):
@@ -229,9 +254,11 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
                 self.write_message({'error': 'no session found'})
                 self.close()
         if 'draw' in data:
-            self.session.on_draw(self, data['target'], data['draw'])
+            self.session.on_draw(self, data['draw'])
         if 'move' in data:
             self.session.on_move(self, data['move'])
+        if 'transfer' in data:
+            self.session.on_transfer(self, data['transfer'])
 
     @classmethod
     def cleanup_sessions(cls):
