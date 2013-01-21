@@ -1,8 +1,17 @@
 body {
-  font-family: sans-serif;
+  font-family: 'Rambla', sans-serif;
   background: rgb(1, 73, 34);
   /* rgb(1, 73, 34),
     rgb(0,155,107) */
+}
+
+.unhappy {
+  color: red;
+}
+
+.unhappyMessage {
+  color: red;
+  display: block;
 }
 
 .rounded {

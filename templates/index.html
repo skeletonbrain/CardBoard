@@ -1,116 +1,155 @@
 <!doctype html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-  <title>CardBoard</title>
-  <meta name="description" content="CardBoard game framework.">
-  <meta name="author" content="skeletonbrain">
-  <link rel="stylesheet" href="/static/css/base.css">
-  <link rel="stylesheet" href="/static/css/pepper-grinder/jquery-ui-1.9.2.custom.min.css">
-  <script src="/static/js/jquery-1.8.3.min.js"></script>
-  <!-- <script src="/static/js/jquery-ui-1.9.2.custom.min.js"></script> -->
-  <script src="/static/js/jquery-ui.js"></script>
-  <!-- <script src="/static/js/jquery.ui.touch-punch.min.js"></script> -->
-  <script src="/static/js/base.js"></script>
-  <script>
-    /* from http://stackoverflow.com/questions/1403888/get-url-parameter-with-jquery */
-    function getURLParameter(name) {
-      return decodeURI(
-        (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
-      );
-    }
+    <head>
+        <meta charset="utf-8">
+        <title>CardBoard</title>
+        <meta name="description" content="CardBoard game framework.">
+        <meta name="author" content="skeletonbrain">
+        <link href='http://fonts.googleapis.com/css?family=Rambla' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Tangerine">
+        <link rel="stylesheet" href="/static/css/base.css">
+        <link rel="stylesheet" href="/static/css/pepper-grinder/jquery-ui-1.9.2.custom.min.css">
+        <script src="/static/js/jquery-1.8.3.min.js"></script>
+        <!-- <script src="/static/js/jquery-ui-1.9.2.custom.min.js"></script> -->
+        <script src="/static/js/jquery-ui.js"></script>
+        <!-- <script src="/static/js/jquery.ui.touch-punch.min.js"></script> -->
+        <script src="/static/js/base.js"></script>
+        <script src="/static/js/happy.js"></script>
+        <script>
+            /* from http://stackoverflow.com/questions/1403888/get-url-parameter-with-jquery */
+            function getURLParameter(name) {
+                return decodeURI(
+                (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
+                );
+            }
 
-    $(function() {
-      $("#sessionTabs").tabs({active:0});
+            function validateName(name) {
+                return /^\s*[\w]{3,24}\s*$/.test(name);
+            }
 
-      var code = getURLParameter('code');
+            function validateCode(code) {
+                return /^\s*[\w]{8,36}\s*$/.test(code);
+            }
 
-      if (code !== 'null') {
-        $('input[name="code"]').val(code);
-      }
+            $(function() {
+                $("#sessionTabs").tabs({active:0});
 
-      $(window).resize(function() {
-        game.resize();
-      });
+                var code = getURLParameter('code');
 
-      game.resize();
-    });
-  </script>
-</head>
-<body>
-  <div id="wrapper">
-    <div id="sessionTabs">
-      <ul>
-        <li><a href="#sessionJoin">Join</a></li>
-        <li><a href="#sessionCreate">Create</a></li>
-      </ul>
-      <div id="sessionJoin">
-        <form>
-          <input type="text" name="name" placeholder="Player Name" />
-          <input type="text" name="code" placeholder="Invite Code" />
-          <input type="submit" value="Join" />
-          {{ xsrf_form_html() }}
-        </form>
-      </div>
-      <div id="sessionCreate">
-        <form>
-          <input type="text" name="name" placeholder="Player Name" />
-          <select name="deck">
-            {% for deck in decks %}
-            <option>{{ deck }}</option>
-            {% end %}
-          </select>
-          <input type="submit" value="Create" />
-          {{ xsrf_form_html() }}
-        </form>
-      </div>
-    </div>
+                if (code !== 'null') {
+                    $('input[name="code"]').val(code);
+                }
 
-    <div id="players">
-    </div>
+                $(window).resize(function() {
+                    game.resize();
+                });
 
-    <div id="messages" class="ui-widget ui-widget-content ui-corner-all">
-    </div>
+                game.resize();
+            });
+        </script>
+    </head>
+    <body>
+        <div id="wrapper">
+            <div id="sessionTabs">
+                <ul>
+                    <li><a href="#sessionJoin">Join</a></li>
+                    <li><a href="#sessionCreate">Create</a></li>
+                </ul>
+                <div id="sessionJoin">
+                    <form>
+                        <input id="joinName" type="text" name="name" placeholder="Player Name" required/>
+                        <input id="joinCode" type="text" name="code" placeholder="Invite Code" required/>
+                        <input type="submit" value="Join" />
+                        {{ xsrf_form_html() }}
+                    </form>
+                </div>
+                <div id="sessionCreate">
+                    <form>
+                        <input id="createName" type="text" name="name" placeholder="Player Name" required/>
+                        <select name="deck">
+                            {% for deck in decks %}
+                            <option>{{ deck }}</option>
+                            {% end %}
+                        </select>
+                        <input type="submit" value="Create" />
+                        {{ xsrf_form_html() }}
+                    </form>
+                </div>
+            </div>
 
-    <div id="board">
-    </div>
+            <div id="players">
+            </div>
 
-    <div id="hud">
-      <div id="deck" class="deck-draggable">
-      </div>
+            <div id="messages" class="ui-widget ui-widget-content ui-corner-all">
+            </div>
 
-      <div id="hand" class="rounded droppable">
-      </div>
-    </div>
+            <div id="board">
+            </div>
 
-  </div>
+            <div id="hud">
+                <div id="deck" class="deck-draggable">
+                </div>
 
-  <script>
-  $("#sessionCreate form").submit(function(event) {
-    event.preventDefault();
-    $('#sessionTabs').hide();
+                <div id="hand" class="rounded droppable">
+                </div>
+            </div>
 
-    var name = $(this).find('input[name="name"]').val().trim();
+        </div>
 
-    $.post('/session/create', $(this).serialize(),
-      function(data) {
-        joinLobby(data['code'], name);
-      }, 'json'
-    ).error(function(xhr, status, error) {
-      $('#sessionTabs').show();
-      displayError(error);
-    });
-  });
+        <script>
+            $("#sessionCreate form").submit(function(event) {
+                event.preventDefault();
 
-  $("#sessionJoin form").submit(function(event) {
-    event.preventDefault();
-    $('#sessionTabs').hide();
+                if ($(this).find('.unhappy').length) {
+                    return; // not validated
+                }
 
-    var name = $(this).find('input[name="name"]').val().trim();
-    var code = $(this).find('input[name="code"]').val().trim();
-    joinLobby(code, name);
-  });
-</script>
+                $('#sessionTabs').hide();
 
-</body>
+                var name = $(this).find('input[name="name"]').val().trim();
+
+                $.post('/session/create', $(this).serialize(),
+                function(data) {
+                    joinLobby(data['code'], name);
+                }, 'json'
+                ).error(function(xhr, status, error) {
+                    $('#sessionTabs').show();
+                    displayError(error);
+                });
+            }).isHappy({
+                fields: {
+                    '#createName': {
+                        message: 'A name (3-24 characters) is required!',
+                        test: validateName
+                    }
+                }
+            });
+
+            $("#sessionJoin form").submit(function(event) {
+                event.preventDefault();
+
+                if ($(this).find('.unhappy').length) {
+                    return; // not validated
+                }
+
+                $('#sessionTabs').hide();
+
+                var name = $(this).find('input[name="name"]').val().trim();
+                var code = $(this).find('input[name="code"]').val().trim();
+                joinLobby(code, name);
+            }).isHappy({
+                fields: {
+                    '#joinName': {
+                        message: 'A name (3-24 characters) is required!',
+                        test: validateName
+                    },
+                    '#joinCode': {
+                        message: 'A valid session code is required!',
+                        test: validateCode
+                    }
+                }
+            });
+        </script>
+
+    </body>
 </html>

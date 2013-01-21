@@ -322,8 +322,11 @@ var game = {
 
     opened: function() {
         displayMessage('Socket opened');
-        displayMessage('<a href="' + location.protocol + '//' + location.host
-            + '?code=' + this.code + '" target="_blank">Invite link</a>');
+
+        var inviteLink = location.protocol + '//' + location.host + '?code=' + this.code;
+        displayMessage('<a href="' + inviteLink + '" target="_blank">Invite link</a>');
+        window.history.pushState('', 'Game Lobby ' + this.code, inviteLink);
+
         this.send({join: {code: this.code, name: this.player_name}});
     },
 

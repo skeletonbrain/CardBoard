@@ -11,6 +11,7 @@ import hashlib
 import time
 import json
 import random
+import re
 
 
 MAX_PLAYERS = 2
@@ -20,6 +21,8 @@ ROOT = os.path.dirname(__file__)
 DECKS = {
     'Standard 52 Cards': 'static/decks/playing_cards.json'
 }
+
+VALID_NAME = re.compile(r'^[\w]{3,24}$')
 
 
 settings = dict(
@@ -57,11 +60,17 @@ class Session(object):
     def add_client(self, client):
         if len(self.clients) >= MAX_PLAYERS:
             client.write_message({'error': 'there are already {} players in this session'.format(MAX_PLAYERS)})
+            client.session = None
             client.close()
             return
 
         if client in self.clients:
             client.write_message({'error': 'you are already connected to this session'})
+            return
+
+        if client.player_name in (x.player_name for x in self.clients):
+            client.write_message({'error': 'a client with the name {} has already connected'.format(client.player_name)})
+            client.close()
             return
 
         self.clients.append(client)
@@ -191,7 +200,7 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         CardSocketHandler.connections.remove(self)
-        if self.session:
+        if self.session and self in self.session.clients:
             # drop other clients
             for client in self.session.clients:
                 if client is not self:
@@ -205,9 +214,12 @@ class CardSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         data = tornado.escape.json_decode(message)
         if 'join' in data:
-            code = data['join']['code']
-            name = data['join']['name']
+            code = data['join']['code'].strip()
+            name = data['join']['name'].strip()
             print 'client named {} trying to join {}'.format(name, code)
+            if not VALID_NAME.match(name):
+                self.write_message({'error': 'invalid name'})
+                self.close()
             if code in self.sessions:
                 self.code = code
                 self.player_name = name
