@@ -95,7 +95,7 @@ class Session(object):
         for client in self.clients:
             deck = self.client_decks[client] = list(range(len(self.deck_cards)))
             random.shuffle(deck)
-            self.client_hands[client] = []
+            self.client_hands[client] = {}
 
         client_vars = {}
         for num, client in enumerate(self.clients):
@@ -151,7 +151,7 @@ class Session(object):
             })
 
         elif target == 'hand':
-            self.client_hands[client].append(card_data)
+            self.client_hands[client][card_id] = card_data
 
             self.broadcast({
                 'player_vars': {
@@ -176,14 +176,14 @@ class Session(object):
         }}, skip=client)
 
     def on_transfer(self, client, data):
-        print 'got transfer'
-        card = int(data['id'])
+        print 'got transfer', data
+        card_id = int(data['id'])
         hand = self.client_hands[client]
         num = self.client_id[client]
 
         if data['target'] == 'hand':
-            card_data = self.cards.pop(card)
-            self.client_hands[client].append(card_data)
+            card_data = self.cards.pop(card_id)
+            hand[card_id].append(card_data)
 
             self.broadcast({
                 'player_vars': {
@@ -192,13 +192,28 @@ class Session(object):
                     }
                 },
                 'remove_card': {
-                    'id': card,
+                    'id': card_id,
                     'player': num
                 },
                 'message': '{} moved a card from the board to his/her hand'.format(client.player_name)
             })
         elif data['target'] == 'board':
-            pass
+            card_data = hand.pop(card_id)
+            self.cards[card_id] = card_data
+
+            message = '{} placed a card on the board from his/her hand'.format(client.player_name)
+
+            self.broadcast({
+                'player_vars': {
+                    num: {
+                        'cards_hand': len(hand)
+                    }
+                },
+                'spawn_card': card_data,
+                'message': message
+            }, skip=client)
+
+            client.write_message({'message': message});
 
     def broadcast(self, message, skip=None):
         for client in (x for x in self.clients if x != skip):

@@ -13,6 +13,7 @@
         <!-- <script src="/static/js/jquery-ui-1.9.2.custom.min.js"></script> -->
         <script src="/static/js/jquery-ui.js"></script>
         <!-- <script src="/static/js/jquery.ui.touch-punch.min.js"></script> -->
+        <script src="/static/js/knockout-2.2.1.js"></script>
         <script src="/static/js/base.js"></script>
         <script src="/static/js/happy.js"></script>
         <script>
@@ -32,12 +33,13 @@
             }
 
             $(function() {
-                $("#sessionTabs").tabs({active:0});
+                $("#sessionTabs").tabs({active:1});
 
                 var code = getURLParameter('code');
 
                 if (code !== 'null') {
                     $('input[name="code"]').val(code);
+                    $("#sessionTabs").tabs({active:0});
                 }
 
                 $(window).resize(function() {
@@ -50,7 +52,7 @@
     </head>
     <body>
         <div id="wrapper">
-            <div id="sessionTabs">
+            <div id="sessionTabs" data-bind="visible: showSessionTabs">
                 <ul>
                     <li><a href="#sessionJoin">Join</a></li>
                     <li><a href="#sessionCreate">Create</a></li>
@@ -77,8 +79,20 @@
                 </div>
             </div>
 
-            <div id="players">
+            <div id="players" data-bind="foreach: players">
+                <div>
+                    <div class="name" data-bind="text: player_name"></div>
+                    <div data-bind="template: { name: 'deck-template' }"></div>
+                    <div class="hand" data-bind="text: cards_hand"></div>
+                </div>
             </div>
+
+            <script type="text/html" id="deck-template">
+                <div class="deck card" data-bind="style: $root.cardStyle(deck.back),
+                                                         attr: { id: 'player-' + id }">
+                    <div class="number" data-bind="text: cards_left"></div>
+                </div>
+            </script>
 
             <div id="messages" class="ui-widget ui-widget-content ui-corner-all">
             </div>
@@ -87,7 +101,8 @@
             </div>
 
             <div id="hud">
-                <div id="deck" class="deck-draggable">
+                <div id="deck" class="deck-draggable" data-bind="with: currentPlayer">
+                    <div data-bind="template: { name: 'deck-template' }"></div>
                 </div>
 
                 <div id="hand" class="rounded droppable">
@@ -104,7 +119,7 @@
                     return; // not validated
                 }
 
-                $('#sessionTabs').hide();
+                game.showSessionTabs(false);
 
                 var name = $(this).find('input[name="name"]').val().trim();
 
@@ -113,7 +128,7 @@
                     joinLobby(data['code'], name);
                 }, 'json'
                 ).error(function(xhr, status, error) {
-                    $('#sessionTabs').show();
+                    game.showSessionTabs(true);
                     displayError(error);
                 });
             }).isHappy({
@@ -132,7 +147,7 @@
                     return; // not validated
                 }
 
-                $('#sessionTabs').hide();
+                game.showSessionTabs(false);
 
                 var name = $(this).find('input[name="name"]').val().trim();
                 var code = $(this).find('input[name="code"]').val().trim();

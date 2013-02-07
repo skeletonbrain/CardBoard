@@ -3,6 +3,10 @@
  *  Licensed under the AGPL v3
  */
 
+$(function(){
+    ko.applyBindings(game);
+});
+
 function joinLobby(code, name) {
     var content = $('#messages');
 
@@ -64,51 +68,18 @@ function restackDraggables(selector, top) {
 }
 
 
-
-function CardStack(container, deck, scale) {
-    this.container = container;
-    this.count = null;
-    this.scale = scale || 1;
-
-    container.css(deck.style);
-    container.addClass('card');
-    if (scale) {
-        container.width(container.width() * scale);
-        container.height(container.height() * scale);
-    }
-
-    this.image = deck.back;
-    this.container.css('background-image', 'url(' + this.image + ')');
-
-    this.setCount = function(count) {
-        this.count = count;
-        this.update();
-    }
-
-    this.update = function() {
-        var c = this.container;
-        c.empty();
-
-
-        if (this.count) {
-            var number = $('<div class="number">').text(this.count);
-            number.disableSelection();
-            c.append(number);
-            number.css('font-size', (this.scale-0.15)  + 'in');
-            number.css('padding-top', (c.height() - number.height()) * 0.5);
-        }
-    }
-}
-
-
 var game = {
+
+    showSessionTabs: ko.observable(true),
 
     ws: null,
     code: null,
     state: null,
     player_id: null,
-    player_vars: [],
-    player_decks: [],
+    currentPlayer: ko.observable(),
+    players: ko.observableArray(),
+    idToPlayer: {},
+    //player_decks: [],
     deck: {},
     cards: {},
     queued_cards: { hand: [] },
@@ -121,8 +92,10 @@ var game = {
         this.code = null;
         this.state = null;
         this.player_id = null;
-        this.player_vars = [];
-        this.player_decks = [];
+        this.currentPlayer(null);
+        this.players.removeAll();
+        this.idToPlayer = {};
+        //this.player_decks = [];
         this.deck = {};
         this.cards = {};
         this.queued_cards = { hand: [] };
@@ -172,10 +145,10 @@ var game = {
         }
         if ('player_vars' in data) {
             if (new_state === 'start') {
-                this.player_vars = data.player_vars;
+                this.initPlayers(data.player_vars);
             }
             else {
-                this.mergeVars(data.player_vars);
+                this.mergePlayers(data.player_vars);
             }
         }
         if ('message' in data) {
@@ -199,7 +172,6 @@ var game = {
 
         this.updateState(new_state);
     },
-
 
     onMove: function(data) {
         var card = this.cards[data.id];
@@ -242,7 +214,7 @@ var game = {
     draggedCard: function(card) {
         var pos = card.offset();
         this.send({'move': {
-            'id': $(card).attr('data-id'),
+            'id': $(card).attr('data-cardid'),
             'pos': [pos.left, pos.top]
         }});
     },
@@ -251,7 +223,11 @@ var game = {
     onSpawn: function(data) {
         var self = this;
         var card = $('<div class="card draggable"></div>');
-        card.attr({'data-id': data.id, 'data-player': data.player});
+        card.attr({
+            'data-cardid': data.id,
+            'data-player': data.player,
+            'data-container': data.target
+        });
         this.decorateCard(card, this.deck.cards[data.card]);
         card.draggable({
             stack: '.card',
@@ -283,16 +259,20 @@ var game = {
             var placeholder = self.queued_cards.hand.pop();
             card.css('position', 'static');
             placeholder.replaceWith(card);
-            // placeholder.remove();
-            // card.appendTo($('#hand'));
-            // $('#hand').sortable('refresh');
         }
-
     },
-
 
     buildBoard: function() {
         var self = this;
+
+        console.log('player length', self.players.length);
+        if (self.players().length > 0) {
+            var height = $('#players').height();
+            $('#messages').css({
+                'max-height': height,
+                'min-height': height
+            });
+        }
 
         var deck = $('#deck');
 
@@ -315,8 +295,6 @@ var game = {
                 if (ui.item.hasClass('deck-draggable')) { // card dragged from deck
                     var elem = $('#hand').find('.deck-draggable');
                     elem.empty(); // strip numbers
-                    elem.removeClass('deck-draggable');
-                    elem.addClass('card-draw-target');
                     self.queued_cards.hand.push(elem);
                     self.drawCard('hand');
                 }
@@ -330,6 +308,9 @@ var game = {
             out: function() {
                 game.over_hand = false;
             },
+            remove: function(event, ui) {
+                console.log('sortable remove', ui);
+            },
             update: function() {
                 // bleh something is up with the sortable, it leaves them position:absolute
                 $('#hand .card').css('position', 'static');
@@ -339,22 +320,47 @@ var game = {
         $('#board').droppable({
             drop: function (event, ui) {
                 var elem = ui.draggable;
-                if (elem.hasClass('deck-draggable') && !game.over_hand) {
-                    self.drawCard('board', [ui.offset.left, ui.offset.top]);
+                if (!game.over_hand) {
+                    if (!elem.attr('data-container')) { // will be set in onSpawn
+                        self.drawCard('board', [ui.offset.left, ui.offset.top]);
+                    }
+                    else if (elem.attr('data-container') == 'hand') {
+                        console.log('dragged from hand to board', elem);
+                        var card_id = elem.attr('data-cardid');
+                        var card = $('#card-' + card_id)[0];
+                        var new_card = card.clone();
+                        console.log('made new card', new_card);
+                        console.log('setting attrs to', card.attr());
+                        new_card.attr(card.attr());
+                        console.log('set attrs', new_card.attr());
+                        $('#board').append(new_card);
+                        self.transferCard('board', new_card);
+                    }
+                    else {
+                        console.log('unidentified drag', elem);
+                    }
                 }
             }
         });
     },
 
+    cardStyle: function(image, scale) {
+        // omit image for the deck's back
+        var style = $.extend({}, this.deck.style);
+        style.backgroundImage = 'url(' + (image ? image : this.deck.back) + ')';
+
+        if (scale) {
+            style.width = style.width * scale;
+            style.height = style.height * scale;
+        }
+
+        return style;
+    },
 
     decorateCard: function(container, image) {
         container.addClass('card');
-        container.css(this.deck.style);
-        if (image) {
-            container.css('background-image', 'url(' + image + ')');
-        }
+        container.css(this.cardStyle(image));
     },
-
 
     opened: function() {
         displayMessage('Socket opened');
@@ -369,38 +375,45 @@ var game = {
 
     closed: function() {
         displayMessage('Socket closed');
-        $('#sessionTabs').show();
+        this.showSessionTabs(true);
         this.ws = null;
     },
-
 
     send: function(data) {
       this.ws.send(JSON.stringify(data));
     },
 
-
-    mergeVars: function(vars) {
+    initPlayers: function(players) {
+        // build players observable and id -> player map
         var self = this;
 
-        for (player in vars) {
-            var current_vars = this.player_vars[player];
-            for (key in vars[player]) {
-                current_vars[key] = vars[player][key];
+        self.players($.map(players, function(player, id) {
+            var result = {};
+
+            $.each(player, function(key, value) {
+                result[key] = ko.observable(value);
+            });
+
+            result['id'] = id;
+            self.idToPlayer[id] = result;
+
+            if (id == self.player_id) {
+                self.currentPlayer(result);
             }
-            this.updatePlayer(player);
-        }
-        this.updateState();
+
+            return result;
+        }));
     },
 
-    updatePlayer: function(player) {
+    mergePlayers: function(vars) {
         var self = this;
 
-        var deck = self.player_decks[player];
-        var vars = self.player_vars[player];
-        var display = $('#player-' + player);
-
-        deck.setCount(vars.cards_left);
-        display.find('.hand').text(vars.cards_hand);
+        for (player_id in vars) {
+            var current_vars = this.idToPlayer[player_id];
+            for (key in vars[player_id]) {
+                current_vars[key](vars[player_id][key]);
+            }
+        }
     },
 
     updateState: function(state) {
@@ -413,17 +426,13 @@ var game = {
         if (this.state === 'start') {
             this.buildBoard();
 
-            this.buildPlayers();
+            //this.buildPlayers();
 
             this.resize();
 
             this.state = 'playing';
         }
-        else if (this.state === 'playing') {
-            this.player_decks[this.player_id].setCount(this.myVars().cards_left);
-        }
     },
-
 
     drawCard: function(target, pos) {
         if (!pos) {
@@ -436,53 +445,13 @@ var game = {
     },
 
     transferCard: function(destination, card) {
+        card.attr('data-container', destination);
+        console.log('card id', $(card).attr('data-cardid'));
         this.send({'transfer': {
             'target': destination,
-            'id': $(card).attr('data-id')
+            'id': $(card).attr('data-cardid')
         }});
     },
-
-
-    myVars: function() {
-        return this.player_vars[this.player_id];
-    },
-
-    buildPlayers: function() {
-        var self = this;
-
-        var players = $('#players');
-        players.empty();
-
-        $.each(self.player_vars, function (key, vars) {
-            var display = $('<div id="player-' + key + '">');
-
-            $('<div class="name">').text(vars.player_name).appendTo(display);
-
-            var deck, scale;
-            if (key == self.player_id) {
-                deck = $('#deck');
-                scale = 1.0;
-            }
-            else {
-                deck = $('<div class="deck">').appendTo(display);
-                display.appendTo(players);
-                scale = 0.75;
-            }
-
-            var stack = self.player_decks[key] = new CardStack(deck, self.deck, scale);
-            stack.setCount(vars.cards_left);
-
-            // deck.width(deck.width()*0.5);
-
-            // display.append('<div class="hand">').text(vars.cards_hand);
-            $('<div class="hand">').text(vars.cards_hand).appendTo(display);
-        });
-
-        if (self.player_vars.length > 1) {
-            $('#messages').css({
-                'max-height': players.height(),
-                'min-height': players.height()
-            });
-        }
-    }
 };
+
+
